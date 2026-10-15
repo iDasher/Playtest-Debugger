@@ -1,0 +1,1 @@
+Debugger for testing my interactive projects with early adoprs. Includes playwright testing

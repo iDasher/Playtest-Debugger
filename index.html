@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Playtest Feedback Tracker</title></head>
+<body>
+  <h1>Playtest Feedback Tracker</h1>
+  <form id="bug-form">
+    <input id="title" placeholder="Bug title">
+    <select id="severity"><option>Low</option><option>Medium</option><option>High</option></select>
+    <button type="submit">Add</button>
+    <p id="error" role="alert"></p>
+  </form>
+  <label>Filter:
+    <select id="filter"><option>All</option><option>Low</option><option>Medium</option><option>High</option></select>
+  </label>
+  <ul id="list"></ul>
+  <script>
+    const bugs = [];
+    const list = document.getElementById('list');
+    const error = document.getElementById('error');
+
+    function render() {
+      const filter = document.getElementById('filter').value;
+      list.innerHTML = '';
+      bugs.filter(b => filter === 'All' || b.severity === filter).forEach(b => {
+        const li = document.createElement('li');
+        li.textContent = `${b.title} (${b.severity})`;
+        list.appendChild(li);
+      });
+    }
+
+    document.getElementById('bug-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const title = document.getElementById('title').value.trim();
+      if (!title) { error.textContent = 'Title is required'; return; }
+      error.textContent = '';
+      bugs.push({ title, severity: document.getElementById('severity').value });
+      document.getElementById('title').value = '';
+      render();
+    });
+    document.getElementById('filter').addEventListener('change', render);
+  </script>
+</body>
+</html>
