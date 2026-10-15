@@ -4,11 +4,11 @@ A small feedback form for user testing my projects. The first version is set up 
 
 ## Run it
 
-Open `index.html` in a browser. No build step is required.
+Open `index.html` in a browser. No build step is required.(Likely to change to some constant website page)
 
 ## Current prototype limitation
 
-The form saves responses to the browser's local storage. This is useful for trying out the form, but responses do not get sent to you and are not shared between browsers or devices. To collect feedback from friends remotely, connect the form to a backend or hosted form service before sharing it as a live feedback link.
+The form saves responses to the browser's local storage, will need to update with server storage.
 
 ## Tests
 
