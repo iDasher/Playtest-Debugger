@@ -1,43 +1,384 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>Playtest Feedback Tracker</title></head>
-<body>
-  <h1>Playtest Feedback Tracker</h1>
-  <form id="bug-form">
-    <input id="title" placeholder="Bug title">
-    <select id="severity"><option>Low</option><option>Medium</option><option>High</option></select>
-    <button type="submit">Add</button>
-    <p id="error" role="alert"></p>
-  </form>
-  <label>Filter:
-    <select id="filter"><option>All</option><option>Low</option><option>Medium</option><option>High</option></select>
-  </label>
-  <ul id="list"></ul>
-  <script>
-    const bugs = [];
-    const list = document.getElementById('list');
-    const error = document.getElementById('error');
-
-    function render() {
-      const filter = document.getElementById('filter').value;
-      list.innerHTML = '';
-      bugs.filter(b => filter === 'All' || b.severity === filter).forEach(b => {
-        const li = document.createElement('li');
-        li.textContent = `${b.title} (${b.severity})`;
-        list.appendChild(li);
-      });
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101218">
+  <title>Playtest feedback</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #101218;
+      color: #f4f3f7;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      --muted: #a3a3b2;
+      --line: #30313d;
+      --panel: #191a23;
+      --accent: #b9f27c;
     }
 
-    document.getElementById('bug-form').addEventListener('submit', e => {
-      e.preventDefault();
-      const title = document.getElementById('title').value.trim();
-      if (!title) { error.textContent = 'Title is required'; return; }
-      error.textContent = '';
-      bugs.push({ title, severity: document.getElementById('severity').value });
-      document.getElementById('title').value = '';
-      render();
+    * { box-sizing: border-box; }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(ellipse at 50% 0%, rgb(107 91 156 / 18%), transparent 42rem),
+        #101218;
+    }
+
+    button, input, select, textarea { font: inherit; }
+
+    .shell {
+      width: min(100% - 32px, 680px);
+      margin: 0 auto;
+      padding: 34px 0 64px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin-bottom: 36px;
+      color: #d8d6e1;
+      font-size: 14px;
+      font-weight: 650;
+      letter-spacing: .01em;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      border: 1px solid #535064;
+      border-radius: 10px;
+      color: var(--accent);
+      font-size: 18px;
+    }
+
+    .intro { margin-bottom: 24px; }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 7vw, 43px);
+      letter-spacing: -.045em;
+      line-height: 1.1;
+    }
+
+    .intro-copy {
+      max-width: 540px;
+      margin: 13px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    .project-card {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin: 26px 0 20px;
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: linear-gradient(110deg, #20212c, #191a23);
+    }
+
+    .project-icon {
+      display: grid;
+      width: 46px;
+      height: 46px;
+      flex: 0 0 46px;
+      place-items: center;
+      border-radius: 12px;
+      background: #302b40;
+      color: #ddd1ff;
+      font-size: 22px;
+    }
+
+    .project-label {
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .project-name { margin: 0; font-size: 16px; font-weight: 700; }
+
+    .form-card {
+      padding: clamp(20px, 5vw, 32px);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: 0 24px 70px rgb(0 0 0 / 18%);
+    }
+
+    .field { margin-bottom: 25px; }
+    .field:last-of-type { margin-bottom: 28px; }
+
+    label, legend {
+      display: block;
+      margin-bottom: 9px;
+      color: #efedf4;
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .optional {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 450;
+    }
+
+    .hint {
+      margin: -3px 0 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    input[type="text"], select, textarea {
+      width: 100%;
+      border: 1px solid #3a3b48;
+      border-radius: 10px;
+      outline: none;
+      background: #12131a;
+      color: #f4f3f7;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    input[type="text"], select { min-height: 46px; padding: 0 13px; }
+    textarea { min-height: 112px; padding: 12px 13px; resize: vertical; }
+
+    input::placeholder, textarea::placeholder { color: #777887; }
+    input:focus, select:focus, textarea:focus {
+      border-color: #a9d877;
+      box-shadow: 0 0 0 3px rgb(185 242 124 / 12%);
+    }
+
+    fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+
+    .rating-options, .choice-options {
+      display: grid;
+      gap: 9px;
+    }
+
+    .rating-options { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .choice-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .choice-options.compact { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .option {
+      position: relative;
+      display: flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin: 0;
+      padding: 9px;
+      border: 1px solid #393a47;
+      border-radius: 10px;
+      background: #14151c;
+      color: #c8c7d1;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 550;
+      text-align: center;
+      transition: border-color .15s, background .15s, color .15s;
+    }
+
+    .option:has(input:checked) {
+      border-color: #a9d877;
+      background: rgb(185 242 124 / 9%);
+      color: #e9f8d9;
+    }
+
+    .option:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .option input { accent-color: var(--accent); }
+    .rating-options .option { flex-direction: column; gap: 5px; }
+    .rating-number { color: #f4f3f7; font-size: 16px; font-weight: 700; }
+
+    .privacy-note {
+      margin: -3px 0 22px;
+      padding: 11px 13px;
+      border-left: 2px solid #77718e;
+      background: #20202a;
+      color: #b9b8c3;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .submit-button {
+      display: flex;
+      width: 100%;
+      min-height: 49px;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #192011;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 750;
+      transition: background .15s, transform .15s;
+    }
+
+    .submit-button:hover { background: #c9fa91; transform: translateY(-1px); }
+    .submit-button:focus-visible { outline: 3px solid white; outline-offset: 3px; }
+
+    .confirmation {
+      margin: 16px 0 0;
+      color: var(--accent);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .footer {
+      margin: 20px 0 0;
+      color: #858593;
+      font-size: 11px;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    @media (max-width: 480px) {
+      .shell { width: min(100% - 24px, 680px); padding-top: 22px; }
+      .topbar { margin-bottom: 29px; }
+      .choice-options.compact { grid-template-columns: 1fr; }
+      .choice-options.compact .option { justify-content: flex-start; padding-left: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar" aria-label="Playtest Notes">
+      <span class="brand-mark" aria-hidden="true">✳</span>
+      <span>Playtest Notes</span>
+    </div>
+
+    <header class="intro">
+      <p class="eyebrow">Your feedback matters</p>
+      <h1>How was your playtest?</h1>
+      <p class="intro-copy">Thanks for giving this project a try. A few honest answers will help make the next version more fun and easier to play.</p>
+    </header>
+
+    <section class="project-card" aria-label="Project being reviewed">
+      <div class="project-icon" aria-hidden="true">◈</div>
+      <div>
+        <p class="project-label">Playtest project</p>
+        <p class="project-name">Roblox Playtest</p>
+      </div>
+    </section>
+
+    <form class="form-card" id="feedback-form">
+      <div class="field">
+        <label for="player-name">What should we call you? <span class="optional">(optional)</span></label>
+        <input id="player-name" name="playerName" type="text" maxlength="40" autocomplete="nickname" placeholder="A nickname is fine">
+      </div>
+
+      <fieldset class="field">
+        <legend>How was the experience overall? <span class="optional">Choose 1 to 5</span></legend>
+        <div class="rating-options">
+          <label class="option"><input type="radio" name="rating" value="1" required><span class="rating-number">1</span><span>Rough</span></label>
+          <label class="option"><input type="radio" name="rating" value="2"><span class="rating-number">2</span><span>Could improve</span></label>
+          <label class="option"><input type="radio" name="rating" value="3"><span class="rating-number">3</span><span>Okay</span></label>
+          <label class="option"><input type="radio" name="rating" value="4"><span class="rating-number">4</span><span>Good</span></label>
+          <label class="option"><input type="radio" name="rating" value="5"><span class="rating-number">5</span><span>Loved it</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="field">
+        <legend>How did the game feel to play?</legend>
+        <div class="choice-options">
+          <label class="option"><input type="radio" name="feeling" value="Fun" required>Fun and engaging</label>
+          <label class="option"><input type="radio" name="feeling" value="Confusing">A bit confusing</label>
+          <label class="option"><input type="radio" name="feeling" value="Relaxing">Relaxing</label>
+          <label class="option"><input type="radio" name="feeling" value="Frustrating">Frustrating</label>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label for="favorite-part">What was your favorite part? <span class="optional">(optional)</span></label>
+        <textarea id="favorite-part" name="favoritePart" maxlength="1000" placeholder="A moment, feature, or anything you enjoyed..."></textarea>
+      </div>
+
+      <div class="field">
+        <label for="improvements">Anything confusing, frustrating, or broken? <span class="optional">(optional)</span></label>
+        <p class="hint">If you found a bug, describe what happened and what you were doing.</p>
+        <textarea id="improvements" name="improvements" maxlength="1500" placeholder="What happened? Where in the game?"></textarea>
+      </div>
+
+      <fieldset class="field">
+        <legend>Would you play again?</legend>
+        <div class="choice-options compact">
+          <label class="option"><input type="radio" name="playAgain" value="Yes" required>Definitely</label>
+          <label class="option"><input type="radio" name="playAgain" value="Maybe">Maybe</label>
+          <label class="option"><input type="radio" name="playAgain" value="No">Probably not</label>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label for="device">What did you play on? <span class="optional">(optional)</span></label>
+        <select id="device" name="device">
+          <option value="">Choose a device</option>
+          <option value="Computer">Computer</option>
+          <option value="Phone">Phone</option>
+          <option value="Tablet">Tablet</option>
+          <option value="Console">Console</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <p class="privacy-note">This is an early prototype. Submissions are saved only in this browser and are not sent to the project creator. Don't include passwords or private information.</p>
+      <button class="submit-button" type="submit">Send playtest feedback <span aria-hidden="true">↗</span></button>
+      <p class="confirmation" id="confirmation" role="status" aria-live="polite"></p>
+    </form>
+
+    <p class="footer">Thanks for helping make the next playtest better.</p>
+  </main>
+
+  <script>
+    const form = document.getElementById('feedback-form');
+    const confirmation = document.getElementById('confirmation');
+
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+
+      const feedback = Object.fromEntries(new FormData(form).entries());
+      const storageKey = 'playtest-feedback';
+
+      try {
+        const savedFeedback = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        if (!Array.isArray(savedFeedback)) {
+          throw new Error('Saved feedback is not in the expected format.');
+        }
+        savedFeedback.push({ ...feedback, submittedAt: new Date().toISOString() });
+        localStorage.setItem(storageKey, JSON.stringify(savedFeedback));
+        form.reset();
+        confirmation.textContent = 'Thanks for the feedback! It has been saved in this browser.';
+      } catch (error) {
+        console.error('Unable to save playtest feedback.', error);
+        confirmation.textContent = 'We could not save your feedback in this browser. Please try again.';
+      }
     });
-    document.getElementById('filter').addEventListener('change', render);
   </script>
 </body>
 </html>
